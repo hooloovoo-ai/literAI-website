@@ -5,6 +5,10 @@ import { LoaderFunctionArgs, useLoaderData } from "react-router-dom";
 import deepEqual from "deep-equal";
 import ReactAudioPlayer from "react-audio-player";
 
+const FADE_DURATION_MS = 2000;
+const FADE_DURATION_SECS = FADE_DURATION_MS / 1000;
+const LISTEN_INTERVAL = 250;
+
 export async function loader(loaderArgs: LoaderFunctionArgs) {
   return loaderArgs.params.title;
 }
@@ -51,10 +55,14 @@ interface ImageInfo {
   alt: string;
   start: number;
   in: boolean
-  duration: number
+  duration: number,
+  time: number,
 }
 
 function findImageIndiciesForTime(imageInfos: ImageInfo[], time: number): [number, number] {
+  if (imageInfos.length === 0)
+    return [-1, -1];
+
   let left: number = 0;
   let right: number = imageInfos.length - 1;
 
@@ -138,7 +146,8 @@ export default function Player() {
         alt: part.book_title,
         start: 0,
         in: true,
-        duration: firstLineStart
+        duration: firstLineStart,
+        time: 0
       })));
 
       // lines
@@ -157,7 +166,8 @@ export default function Player() {
             alt: summary.descriptions[index],
             start: line.start,
             in: true,
-            duration: 0
+            duration: 0,
+            time: 0
           }));
           result.push(...currentSummaryLines);
         }
@@ -180,7 +190,7 @@ export default function Player() {
 
   const player = useRef<ReactAudioPlayer>(null);
 
-  const [position, setPosition] = useState(0);
+  const [position, setPosition] = useState(-1);
   const onListen = useCallback((time: number) => {
     setPosition(time);
   }, []);
@@ -189,13 +199,54 @@ export default function Player() {
     setPosition(player.current?.audioEl.current?.currentTime || 0);
   }, [player]);
 
+  const [imageBounds, setImageBounds] = useState<[number, number]>();
+  const [lastShownImageIndexAndTime, setLastShownImageIndexAndTime] = useState<[number, number]>();
+
   useEffect(() => {
-    const [startImageIndex, endImageIndex] = findImageIndiciesForTime(allImages, position);
-    const result: (ImageInfo | undefined)[] = allImages.slice(startImageIndex, startImageIndex + 3);
-    while (result.length < numImages)
-      result.push(undefined);
-    setImageInfos(prevImageInfos => deepEqual(result, prevImageInfos, { strict: true }) ? prevImageInfos : result);
-  }, [allImages, position, numImages]);
+    if (allImages.length === 0 || position < 0 || !player)
+      return;
+    const newImageBounds = findImageIndiciesForTime(allImages, position);
+    if (deepEqual(newImageBounds, imageBounds)) {
+      setImageInfos(imageInfos => {
+        let changed = false;
+        const isStart = !imageInfos.reduce((prev, curr) => !!curr?.in || prev, false);
+        const paused = !!player.current?.audioEl.current?.paused;
+        const newImageInfos = imageInfos.map((imageInfo, index) => {
+          if (imageInfo) {
+            if (position >= imageInfo.time) {
+              changed = true;
+              if (imageInfo.in && !paused) {
+                imageInfo.in = false;
+                imageInfo.time = position + FADE_DURATION_SECS;
+                return imageInfo;
+              } else {
+                const newImageInfo = allImages[newImageBounds[0] + index];
+                newImageInfo.in = true;
+                newImageInfo.time = position + FADE_DURATION_SECS;
+                return newImageInfo;
+              }
+            }
+          }
+        });
+        if (changed)
+          console.log("updated images");
+        return changed ? [...newImageInfos] : imageInfos;
+      });
+    } else { 
+      setImageInfos(imageInfos => {
+        if (position == 0)
+          imageInfos = allImages.slice(0, numImages);
+        imageInfos.forEach(image => {
+          if (image) {
+            image.in = false;
+            image.time = position;
+          }
+        });
+        return [...imageInfos];
+      });
+      setImageBounds(newImageBounds);
+    }
+  }, [allImages, player, position, imageBounds]);
 
   return (
     <Container maxWidth={false} sx={{ height: "100vh" }}>
@@ -206,7 +257,7 @@ export default function Player() {
               <Box sx={{ padding: 2 }}>
                 {
                   imageInfo ?
-                    <Fade in={imageInfo.in} timeout={3000}>
+                    <Fade in={imageInfo.in} timeout={FADE_DURATION_MS}>
                       <img width="100%" src={imageInfo.src} alt={imageInfo.alt} />
                     </Fade> :
                     <div />
@@ -220,7 +271,7 @@ export default function Player() {
         <Grid xs={12}>
           {
             storageBase && part ?
-              <ReactAudioPlayer style={{ width: "100%" }} src={`${storageBase}/${part.audio}`} ref={player} listenInterval={250} onListen={onListen} onSeeked={onSeeked} controls /> :
+              <ReactAudioPlayer style={{ width: "100%" }} src={`${storageBase}/${part.audio}`} ref={player} listenInterval={LISTEN_INTERVAL} onListen={onListen} onSeeked={onSeeked} onCanPlay={onSeeked} controls /> :
               <div />
           }
         </Grid>
