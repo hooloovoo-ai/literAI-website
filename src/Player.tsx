@@ -7,6 +7,7 @@ import ReactAudioPlayer from "react-audio-player";
 
 const FADE_DURATION_MS = 2000;
 const FADE_DURATION_SECS = FADE_DURATION_MS / 1000;
+const IMAGE_BLACK_SECS = .2;
 const IMAGE_DURATION_SECS = FADE_DURATION_SECS * 3;
 const LISTEN_INTERVAL = 33;
 
@@ -55,7 +56,7 @@ interface ImageInfo {
   src: string;
   alt: string;
   start: number;
-  in: boolean
+  in: boolean | null
   duration: number,
   time: number,
   index: number
@@ -219,34 +220,36 @@ export default function Player() {
           if (imageInfo) {
             if (position >= imageInfo.time) {
               changed = true;
-              if (imageInfo.in) {
+              if (imageInfo.in === true) {
                 imageInfo.in = false;
                 imageInfo.time = position + FADE_DURATION_SECS;
               }
-              else {
+              else if (imageInfo.in === false) {
+                // set the new image, and stay black for a little time because we may need to go download it
                 const numberOfImagesToChooseFrom = newImageBounds[1] - newImageBounds[0] + 1;
                 const newImageIndex = ((imageInfo.index - newImageBounds[0] + numImages) % numberOfImagesToChooseFrom) + newImageBounds[0];
                 const newImageInfo = {...allImages[newImageIndex]};
-                newImageInfo.in = true;
-                newImageInfo.time = position + IMAGE_DURATION_SECS * numImages;
-                console.log("newImageIndex", newImageIndex, "newImageInfo", newImageInfo);
+                newImageInfo.in = null;
+                newImageInfo.time = position + IMAGE_BLACK_SECS;
                 return newImageInfo;
+              }
+              else {
+                imageInfo.in = true;
+                imageInfo.time = position + (IMAGE_DURATION_SECS + IMAGE_BLACK_SECS) * numImages;
+                return imageInfo;
               }
             }
           }
           return imageInfo;
         });
-        if (changed)
-          console.log("updated images", newImageInfos);
         return changed ? [...newImageInfos] : imageInfos;
       });
     } else {
-      console.log("newImageBounds", newImageBounds);
       if (paused || didSeek) {
         setImageInfos(imageInfos => !!player.current?.audioEl.current?.paused ?
           allImages.slice(newImageBounds[0], newImageBounds[0] + numImages).map((imageInfo, index) => {
             imageInfo.in = true;
-            imageInfo.time = position + IMAGE_DURATION_SECS + (IMAGE_DURATION_SECS + FADE_DURATION_SECS) * index;
+            imageInfo.time = position + IMAGE_DURATION_SECS + (IMAGE_DURATION_SECS + FADE_DURATION_SECS + IMAGE_BLACK_SECS) * index;
             return imageInfo;
           }) :
           imageInfos 
@@ -266,7 +269,7 @@ export default function Player() {
               <Box sx={{ padding: 2 }}>
                 {
                   imageInfo ?
-                    <Fade in={imageInfo.in} timeout={FADE_DURATION_MS}>
+                    <Fade in={!!imageInfo.in} timeout={FADE_DURATION_MS}>
                       <img width="100%" src={imageInfo.src} alt={imageInfo.alt} />
                     </Fade> :
                     <div />
