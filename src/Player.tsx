@@ -7,7 +7,8 @@ import ReactAudioPlayer from "react-audio-player";
 
 const FADE_DURATION_MS = 2000;
 const FADE_DURATION_SECS = FADE_DURATION_MS / 1000;
-const LISTEN_INTERVAL = 250;
+const IMAGE_DURATION_SECS = FADE_DURATION_SECS * 3;
+const LISTEN_INTERVAL = 33;
 
 export async function loader(loaderArgs: LoaderFunctionArgs) {
   return loaderArgs.params.title;
@@ -57,6 +58,7 @@ interface ImageInfo {
   in: boolean
   duration: number,
   time: number,
+  index: number
 }
 
 function findImageIndiciesForTime(imageInfos: ImageInfo[], time: number): [number, number] {
@@ -141,13 +143,14 @@ export default function Player() {
       const firstLineStart = part.lines.find(line => line.summary !== undefined)?.start || 0;
 
       // title
-      result.push(...part.images.map((item) => ({
+      result.push(...part.images.map((item, index) => ({
         src: `${storageBase}/${item}`,
         alt: part.book_title,
         start: 0,
         in: true,
         duration: firstLineStart,
-        time: 0
+        time: 0,
+        index
       })));
 
       // lines
@@ -167,7 +170,8 @@ export default function Player() {
             start: line.start,
             in: true,
             duration: 0,
-            time: 0
+            time: 0,
+            index: result.length + index
           }));
           result.push(...currentSummaryLines);
         }
@@ -195,58 +199,63 @@ export default function Player() {
     setPosition(time);
   }, []);
 
+  const [didSeek, setDidSeek] = useState(false);
   const onSeeked = useCallback((e: Event) => {
     setPosition(player.current?.audioEl.current?.currentTime || 0);
+    setDidSeek(true);
   }, [player]);
 
   const [imageBounds, setImageBounds] = useState<[number, number]>();
-  const [lastShownImageIndexAndTime, setLastShownImageIndexAndTime] = useState<[number, number]>();
 
   useEffect(() => {
     if (allImages.length === 0 || position < 0 || !player)
       return;
     const newImageBounds = findImageIndiciesForTime(allImages, position);
-    if (deepEqual(newImageBounds, imageBounds)) {
+    const paused = !!player.current?.audioEl.current?.paused;
+    if (deepEqual(newImageBounds, imageBounds) && !paused && !didSeek) {
       setImageInfos(imageInfos => {
         let changed = false;
-        const isStart = !imageInfos.reduce((prev, curr) => !!curr?.in || prev, false);
-        const paused = !!player.current?.audioEl.current?.paused;
         const newImageInfos = imageInfos.map((imageInfo, index) => {
           if (imageInfo) {
             if (position >= imageInfo.time) {
               changed = true;
-              if (imageInfo.in && !paused) {
+              if (imageInfo.in) {
                 imageInfo.in = false;
                 imageInfo.time = position + FADE_DURATION_SECS;
-                return imageInfo;
-              } else {
-                const newImageInfo = allImages[newImageBounds[0] + index];
+              }
+              else {
+                const numberOfImagesToChooseFrom = newImageBounds[1] - newImageBounds[0] + 1;
+                const newImageIndex = ((imageInfo.index - newImageBounds[0] + numImages) % numberOfImagesToChooseFrom) + newImageBounds[0];
+                const newImageInfo = {...allImages[newImageIndex]};
                 newImageInfo.in = true;
-                newImageInfo.time = position + FADE_DURATION_SECS;
+                newImageInfo.time = position + IMAGE_DURATION_SECS * numImages;
+                console.log("newImageIndex", newImageIndex, "newImageInfo", newImageInfo);
                 return newImageInfo;
               }
             }
           }
+          return imageInfo;
         });
         if (changed)
-          console.log("updated images");
+          console.log("updated images", newImageInfos);
         return changed ? [...newImageInfos] : imageInfos;
       });
-    } else { 
-      setImageInfos(imageInfos => {
-        if (position == 0)
-          imageInfos = allImages.slice(0, numImages);
-        imageInfos.forEach(image => {
-          if (image) {
-            image.in = false;
-            image.time = position;
-          }
-        });
-        return [...imageInfos];
-      });
-      setImageBounds(newImageBounds);
+    } else {
+      console.log("newImageBounds", newImageBounds);
+      if (paused || didSeek) {
+        setImageInfos(imageInfos => !!player.current?.audioEl.current?.paused ?
+          allImages.slice(newImageBounds[0], newImageBounds[0] + numImages).map((imageInfo, index) => {
+            imageInfo.in = true;
+            imageInfo.time = position + IMAGE_DURATION_SECS + (IMAGE_DURATION_SECS + FADE_DURATION_SECS) * index;
+            return imageInfo;
+          }) :
+          imageInfos 
+        );
+      }
+      setImageBounds(imageBounds => deepEqual(imageBounds, newImageBounds) ? imageBounds : newImageBounds);
+      setDidSeek(false);
     }
-  }, [allImages, player, position, imageBounds]);
+  }, [allImages, player, position, imageBounds, numImages, didSeek]);
 
   return (
     <Container maxWidth={false} sx={{ height: "100vh" }}>
