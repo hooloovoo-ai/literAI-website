@@ -228,7 +228,7 @@ export default function Player() {
                 // set the new image, and stay black for a little time because we may need to go download it
                 const numberOfImagesToChooseFrom = newImageBounds[1] - newImageBounds[0] + 1;
                 const newImageIndex = ((imageInfo.index - newImageBounds[0] + numImages) % numberOfImagesToChooseFrom) + newImageBounds[0];
-                const newImageInfo = {...allImages[newImageIndex]};
+                const newImageInfo = { ...allImages[newImageIndex] };
                 newImageInfo.in = null;
                 newImageInfo.time = position + IMAGE_BLACK_SECS;
                 return newImageInfo;
@@ -252,7 +252,7 @@ export default function Player() {
             imageInfo.time = position + IMAGE_DURATION_SECS + (IMAGE_DURATION_SECS + FADE_DURATION_SECS + IMAGE_BLACK_SECS) * index;
             return imageInfo;
           }) :
-          imageInfos 
+          imageInfos
         );
       }
       setImageBounds(imageBounds => deepEqual(imageBounds, newImageBounds) ? imageBounds : newImageBounds);
@@ -262,23 +262,22 @@ export default function Player() {
 
   return (
     <Container maxWidth={false} sx={{ height: "100vh" }}>
-      <Grid container spacing={1}>
+      <Grid container spacing={2} height="100%">
         {
           imageInfos.map((imageInfo, index) => (
-            <Grid xs={4} key={index}>
-              <Box sx={{ padding: 2 }}>
+            <Grid xs={12 / numImages} key={index} display="flex" justifyContent="center" alignItems="center" maxHeight="80%">
                 {
                   imageInfo ?
                     <Fade in={!!imageInfo.in} timeout={FADE_DURATION_MS}>
-                      <img width="100%" src={imageInfo.src} alt={imageInfo.alt} />
+                      <img style={{maxWidth: "100%", height: "auto"}} src={imageInfo.src} alt={imageInfo.alt} />
                     </Fade> :
                     <div />
                 }
-              </Box>
             </Grid>
           ))
         }
-        <Grid xs={12}>
+        <Grid xs={12} height="15%">
+          Conversation
         </Grid>
         <Grid xs={12}>
           {
@@ -287,13 +286,12 @@ export default function Player() {
               <div />
           }
         </Grid>
+        <Snackbar open={errorMessage !== undefined} autoHideDuration={10000} onClose={handleErrorClose}>
+          <Alert onClose={handleErrorClose} severity="error" sx={{ width: '100%' }}>
+            {errorMessage}
+          </Alert>
+        </Snackbar>
       </Grid>
-
-      <Snackbar open={errorMessage !== undefined} autoHideDuration={10000} onClose={handleErrorClose}>
-        <Alert onClose={handleErrorClose} severity="error" sx={{ width: '100%' }}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
     </Container>
   );
 }
