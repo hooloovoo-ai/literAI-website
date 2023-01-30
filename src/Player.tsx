@@ -1,4 +1,4 @@
-import { Alert, Box, Container, Fade, Snackbar, Theme, useMediaQuery } from "@mui/material";
+import { Alert, Box, Container, Fade, Snackbar, Stack, Theme, Typography, useMediaQuery, useTheme } from "@mui/material";
 import Grid from "@mui/system/Unstable_Grid";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoaderFunctionArgs, useLoaderData } from "react-router-dom";
@@ -27,6 +27,18 @@ interface TitleIndex {
   parts: string[]
 }
 
+interface HasStart {
+  start: number,
+}
+
+interface Line extends HasStart {
+  speaker: number,
+  text: string,
+  summary?: number,
+  end: number,
+  audio?: string
+}
+
 interface Part {
   book_title: string,
   book_author: string,
@@ -40,14 +52,7 @@ interface Part {
     images: string[]
   }[],
   images: [],
-  lines: {
-    speaker: number,
-    text: string,
-    summary?: number,
-    start: number,
-    end: number,
-    audio?: string
-  }[],
+  lines: Line[],
   duration: number,
   audio: string
 }
@@ -100,6 +105,22 @@ function findImageIndiciesForTime(imageInfos: ImageInfo[], time: number): [numbe
   }
 
   return [mid, end];
+}
+
+function findLineIndexByTime(lines: Line[], time: number): number {
+  let left: number = 0;
+  let right: number = lines.length - 1;
+
+  let mid = -1;
+  while (left <= right) {
+    mid = Math.floor((left + right) / 2);
+
+    if (time >= lines[mid].start && time <= lines[mid].end) return mid;
+    if (time < lines[mid].start) right = mid - 1;
+    else left = mid + 1;
+  }
+
+  return mid;
 }
 
 export default function Player() {
@@ -260,38 +281,88 @@ export default function Player() {
     }
   }, [allImages, player, position, imageBounds, numImages, didSeek]);
 
+  const [currentLine, setCurrentLine] = useState<number>();
+  const [pastTranscript, setPastTranscript] = useState<Line[]>([]);
+  const splitCurrentLine = useMemo<string[]>(() =>
+    currentLine !== undefined && part != undefined ? part.lines[currentLine].text.split(' ') : []
+    , [currentLine, part]);
+
+  useEffect(() => {
+    if (!part || position < 0 || !player)
+      return;
+    const newCurrentLine = findLineIndexByTime(part.lines, position);
+    const paused = !!player.current?.audioEl.current?.paused;
+    setCurrentLine(prevCurrentLine => {
+      if (prevCurrentLine !== newCurrentLine && !paused && !didSeek) {
+        if (prevCurrentLine !== undefined)
+          setPastTranscript(prevPastTranscript => {
+            if (prevPastTranscript.length !== 0 && prevPastTranscript[prevPastTranscript.length - 1].text === part.lines[prevCurrentLine].text)
+              return prevPastTranscript;
+            return [...prevPastTranscript, part.lines[prevCurrentLine]];
+          });
+      }
+      return newCurrentLine;
+    });
+  }, [player, position, part, didSeek]);
+
+  const theme = useTheme();
   return (
-    <Container maxWidth={false} sx={{ height: "100vh" }}>
-      <Grid container spacing={2} height="100%">
+    <Box width="100vw" height="100vh" display="flex" flexDirection="column">
+      <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" mt={2}>
         {
           imageInfos.map((imageInfo, index) => (
-            <Grid xs={12 / numImages} key={index} display="flex" justifyContent="center" alignItems="center" maxHeight="80%">
-                {
-                  imageInfo ?
-                    <Fade in={!!imageInfo.in} timeout={FADE_DURATION_MS}>
-                      <img style={{maxWidth: "100%", height: "auto"}} src={imageInfo.src} alt={imageInfo.alt} />
-                    </Fade> :
-                    <div />
-                }
-            </Grid>
+            <Box key={index}>
+              {
+                imageInfo ?
+                  <Fade in={!!imageInfo.in} timeout={FADE_DURATION_MS}>
+                    <img style={{ maxWidth: "100%", height: "auto" }} src={imageInfo.src} alt={imageInfo.alt} />
+                  </Fade> :
+                  <Box />
+              }
+            </Box>
           ))
         }
-        <Grid xs={12} height="15%">
-          Conversation
-        </Grid>
-        <Grid xs={12}>
-          {
-            storageBase && part ?
-              <ReactAudioPlayer style={{ width: "100%" }} src={`${storageBase}/${part.audio}`} ref={player} listenInterval={LISTEN_INTERVAL} onListen={onListen} onSeeked={onSeeked} onCanPlay={onSeeked} controls /> :
-              <div />
-          }
-        </Grid>
-        <Snackbar open={errorMessage !== undefined} autoHideDuration={10000} onClose={handleErrorClose}>
-          <Alert onClose={handleErrorClose} severity="error" sx={{ width: '100%' }}>
-            {errorMessage}
-          </Alert>
-        </Snackbar>
-      </Grid>
-    </Container>
+      </Stack>
+      <Box overflow="auto" flex={1} margin={2}>
+        {
+          pastTranscript && part ?
+            pastTranscript.map((transcript, index) => (
+              <p key={index}>
+                <span style={{ color: transcript.speaker === 0 ? theme.palette.secondary.main : theme.palette.secondary.dark }}>
+                  {part.speakers[transcript.speaker]}
+                </span>
+                <span style={{ color: theme.palette.text.disabled }}>: </span>
+                {transcript.text}
+              </p>
+            )) :
+            <Box />
+        }
+        {
+          currentLine && part && splitCurrentLine ?
+            <p key="current">
+              <span style={{ color: part.lines[currentLine].speaker === 0 ? theme.palette.secondary.main : theme.palette.secondary.dark }}>
+                {part.speakers[part.lines[currentLine].speaker]}
+              </span>
+              <span style={{ color: theme.palette.text.disabled }}>: </span>
+              {
+                position >= part.lines[currentLine].start ?
+                  splitCurrentLine.slice(0, Math.floor(((position - part.lines[currentLine].start) / (part.lines[currentLine].end - part.lines[currentLine].start)) * splitCurrentLine.length)).join(' ') :
+                  ''
+              }
+            </p> :
+            <Box />
+        }
+      </Box>
+      {
+        storageBase && part ?
+          <ReactAudioPlayer style={{ width: "100%" }} src={`${storageBase}/${part.audio}`} ref={player} listenInterval={LISTEN_INTERVAL} onListen={onListen} onSeeked={onSeeked} onCanPlay={onSeeked} controls /> :
+          <Box />
+      }
+      <Snackbar open={errorMessage !== undefined} autoHideDuration={10000} onClose={handleErrorClose}>
+        <Alert onClose={handleErrorClose} severity="error" sx={{ width: '100%' }}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
