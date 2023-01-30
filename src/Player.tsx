@@ -1,5 +1,4 @@
-import { Alert, Box, Container, Fade, Snackbar, Stack, Theme, Typography, useMediaQuery, useTheme } from "@mui/material";
-import Grid from "@mui/system/Unstable_Grid";
+import { Alert, Box, Fade, Snackbar, Stack, Theme, useMediaQuery, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoaderFunctionArgs, useLoaderData } from "react-router-dom";
 import deepEqual from "deep-equal";
@@ -284,7 +283,7 @@ export default function Player() {
   const [currentLine, setCurrentLine] = useState<number>();
   const [pastTranscript, setPastTranscript] = useState<Line[]>([]);
   const splitCurrentLine = useMemo<string[]>(() =>
-    currentLine !== undefined && part != undefined ? part.lines[currentLine].text.split(' ') : []
+    currentLine !== undefined && part !== undefined ? part.lines[currentLine].text.split(' ') : []
     , [currentLine, part]);
 
   useEffect(() => {
@@ -306,6 +305,20 @@ export default function Player() {
   }, [player, position, part, didSeek]);
 
   const theme = useTheme();
+  const scrollIntoViewRef = useRef<HTMLDivElement>(null);
+  const performScrolldown = useRef(false);
+  useEffect(() => {
+    if (!player || didSeek)
+      return;
+    const paused = !!player.current?.audioEl.current?.paused;
+    if (paused)
+      return;
+    if (performScrolldown.current) {
+      setTimeout(() => scrollIntoViewRef?.current?.scrollIntoView({ behavior: "auto", block: "nearest" }), 500);
+    }
+    performScrolldown.current = true;
+  }, [currentLine, player, didSeek, position]);
+
   return (
     <Box width="100vw" height="100vh" display="flex" flexDirection="column">
       <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" mt={2}>
@@ -340,7 +353,7 @@ export default function Player() {
         {
           currentLine && part && splitCurrentLine ?
             <p key="current">
-              <span style={{ color: part.lines[currentLine].speaker === 0 ? theme.palette.secondary.main : theme.palette.secondary.dark }}>
+              <span style={{ color: theme.palette.secondary.main }}>
                 {part.speakers[part.lines[currentLine].speaker]}
               </span>
               <span style={{ color: theme.palette.text.disabled }}>: </span>
@@ -352,6 +365,7 @@ export default function Player() {
             </p> :
             <Box />
         }
+        <div key="scroll" ref={scrollIntoViewRef}></div>
       </Box>
       {
         storageBase && part ?
