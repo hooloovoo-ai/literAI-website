@@ -1,10 +1,11 @@
-import { Alert, Box, Fade, Snackbar, Stack, Theme, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, AppBar, Box, Fade, IconButton, MenuItem, Select, Snackbar, Stack, Theme, Toolbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LoaderFunctionArgs, useLoaderData } from "react-router-dom";
+import { LoaderFunctionArgs, useLoaderData, useNavigate } from "react-router-dom";
 import deepEqual from "deep-equal";
 import ReactAudioPlayer from "react-audio-player";
 import { fetchJSON } from "./util";
 import { Line, Part, TitleIndex } from "./types";
+import { ArrowBack } from "@mui/icons-material";
 
 const FADE_DURATION_MS = 2000;
 const FADE_DURATION_SECS = FADE_DURATION_MS / 1000;
@@ -280,8 +281,34 @@ export default function Player() {
     performScrolldown.current = true;
   }, [currentLine, player, didSeek, position]);
 
+  const navigate = useNavigate();
+  const onBack = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
+
   return (
     <Box width="100vw" height="100vh" display="flex" flexDirection="column">
+      <AppBar position="static">
+        <Toolbar>
+          <IconButton size="large" edge="start" color="inherit" aria-label="back" sx={{ mr: 2 }} onClick={onBack} >
+            <ArrowBack />
+          </IconButton>
+          <Typography variant="h4" component="div" sx={{ mr: 2 }} >
+            {part?.book_title ?? ''}
+          </Typography>
+          <Typography variant="h6" component="div" color="text.secondary" sx={{ flexGrow: 1 }}>
+            {part?.book_author ?? ''}
+          </Typography>
+          <Select value={currentPartIndex}>
+          {
+              part ?
+                Array.from(Array(part.num_parts).keys()).map(i => (
+                  <MenuItem value={i}>{`Part ${i + 1}`}</MenuItem>
+                )) : <Box />
+            }
+          </Select>
+        </Toolbar>
+      </AppBar>
       <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" mt={2}>
         {
           imageInfos.map((imageInfo, index) => (
