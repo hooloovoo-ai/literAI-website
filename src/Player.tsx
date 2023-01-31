@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoaderFunctionArgs, useLoaderData } from "react-router-dom";
 import deepEqual from "deep-equal";
 import ReactAudioPlayer from "react-audio-player";
+import { fetchJSON } from "./util";
+import { Line, Part, TitleIndex } from "./types";
 
 const FADE_DURATION_MS = 2000;
 const FADE_DURATION_SECS = FADE_DURATION_MS / 1000;
@@ -12,48 +14,6 @@ const LISTEN_INTERVAL = 33;
 
 export async function loader(loaderArgs: LoaderFunctionArgs) {
   return loaderArgs.params.title;
-}
-
-async function fetchJSON(url: string) {
-  const response = await fetch(url);
-  return response.json();
-}
-
-interface TitleIndex {
-  title: string,
-  author: string,
-  slug: string,
-  parts: string[]
-}
-
-interface HasStart {
-  start: number,
-}
-
-interface Line extends HasStart {
-  speaker: number,
-  text: string,
-  summary?: number,
-  end: number,
-  audio?: string
-}
-
-interface Part {
-  book_title: string,
-  book_author: string,
-  part: number,
-  num_parts: number,
-  speakers: string[],
-  summaries: {
-    text: string,
-    batch: number,
-    descriptions: string[],
-    images: string[]
-  }[],
-  images: [],
-  lines: Line[],
-  duration: number,
-  audio: string
 }
 
 interface ImageInfo {
@@ -282,9 +242,6 @@ export default function Player() {
 
   const [currentLine, setCurrentLine] = useState<number>();
   const [pastTranscript, setPastTranscript] = useState<Line[]>([]);
-  const splitCurrentLine = useMemo<string[]>(() =>
-    currentLine !== undefined && part !== undefined ? part.lines[currentLine].text.split(' ') : []
-    , [currentLine, part]);
 
   useEffect(() => {
     if (!part || position < 0 || !player)
@@ -303,6 +260,10 @@ export default function Player() {
       return newCurrentLine;
     });
   }, [player, position, part, didSeek]);
+
+  const splitCurrentLine = useMemo<string[]>(() =>
+    currentLine !== undefined && part !== undefined ? part.lines[currentLine].text.split(' ') : []
+    , [currentLine, part]);
 
   const theme = useTheme();
   const scrollIntoViewRef = useRef<HTMLDivElement>(null);
@@ -341,7 +302,7 @@ export default function Player() {
           pastTranscript && part ?
             pastTranscript.map((transcript, index) => (
               <p key={index}>
-                <span style={{ color: transcript.speaker === 0 ? theme.palette.secondary.main : theme.palette.secondary.dark }}>
+                <span style={{ color: theme.palette.secondary.main }}>
                   {part.speakers[transcript.speaker]}
                 </span>
                 <span style={{ color: theme.palette.text.disabled }}>: </span>
@@ -351,7 +312,7 @@ export default function Player() {
             <Box />
         }
         {
-          currentLine && part && splitCurrentLine ?
+          currentLine !== undefined && part && splitCurrentLine && position > 0 ?
             <p key="current">
               <span style={{ color: theme.palette.secondary.main }}>
                 {part.speakers[part.lines[currentLine].speaker]}

@@ -1,7 +1,9 @@
 import { Box, Card, CardContent, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Stack, Typography } from "@mui/material";
 import { Container } from "@mui/system";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link as RouterLink, LinkProps as RouterLinkProps } from 'react-router-dom';
+import { TitleIndex } from "./types";
+import { fetchJSON } from "./util";
 
 interface ListTitleLinkProps {
   icon?: React.ReactElement;
@@ -21,14 +23,21 @@ function ListTitleLink(props: ListTitleLinkProps) {
   const { icon, title, author, slug } = props;
 
   return (
-      <ListItemButton component={TitleLink} to={`/${slug}`}>
-        {icon ? <ListItemIcon>{icon}</ListItemIcon> : null}
-        <ListItemText primary={title} secondary={author} />
-      </ListItemButton>
+    <ListItemButton component={TitleLink} to={`/${slug}`}>
+      {icon ? <ListItemIcon>{icon}</ListItemIcon> : null}
+      <ListItemText primary={title} secondary={author} />
+    </ListItemButton>
   );
 }
 
 export default function App() {
+  const [index, setIndex] = useState<TitleIndex[]>();
+  useEffect(() => {
+    fetchJSON(`${process.env.REACT_APP_STORAGE_BASE}/index.json`)
+      .catch(err => console.error(err))
+      .then(data => setIndex(data));
+  }, []);
+
   return (
     <Container maxWidth="sm">
       <Box sx={{ my: 4 }}>
@@ -47,15 +56,21 @@ export default function App() {
               <Stack direction="row" spacing={1}>
                 <Chip label="GitHub" component="a" href="https://github.com/jquesnelle/literAI" target="_blank" variant="outlined" clickable />
                 <Chip label="Twitter" component="a" href="https://twitter.com/theemozilla" target="_blank" variant="outlined" clickable />
+                <Chip label="Blog" component="a" href="https://jeffq.com/blog" target="_blank" variant="outlined" clickable />
               </Stack>
             </CardContent>
           </Card>
           <Card>
             <CardContent>
               <List>
-                <ListItem disablePadding>
-                  <ListTitleLink title="Alice's Adventures in Wonderland" author="Lewis Carrol" slug="alices-adventures-in-wonderland"/>
-                </ListItem>
+                {
+                  index ?
+                    index.map((title, key) => (
+                      <ListItem key={key} disablePadding>
+                        <ListTitleLink title={title.title} author={title.author} slug={title.slug} />
+                      </ListItem>
+                    )) : <Box />
+                }
               </List>
             </CardContent>
           </Card>
