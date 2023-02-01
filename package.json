@@ -1,6 +1,6 @@
 {
-  "name": "@hooloovoo/literai-website",
-  "version": "0.1.0",
+  "name": "@hooloovoo-ai/literai-website",
+  "version": "1.0.0",
   "author": "Jeffrey Quesnelle <jq@jeffq.com>",
   "license": "MIT",
   "private": true,
