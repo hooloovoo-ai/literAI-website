@@ -55,6 +55,7 @@ export default function App() {
               </Typography>
               <Stack direction="row" spacing={1}>
                 <Chip label="GitHub" component="a" href="https://github.com/jquesnelle/literAI" target="_blank" variant="outlined" clickable />
+                <Chip label="GitHub (front-end)" component="a" href="https://github.com/hooloovoo-ai/literAI-website" target="_blank" variant="outlined" clickable />
                 <Chip label="Twitter" component="a" href="https://twitter.com/theemozilla" target="_blank" variant="outlined" clickable />
                 <Chip label="Blog" component="a" href="https://jeffq.com/blog" target="_blank" variant="outlined" clickable />
               </Stack>

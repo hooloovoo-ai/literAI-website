@@ -1,4 +1,4 @@
-import { Alert, AppBar, Box, Fade, IconButton, MenuItem, Select, Snackbar, Stack, Theme, Toolbar, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, AppBar, Box, Fade, IconButton, MenuItem, Select, SelectChangeEvent, Snackbar, Stack, Theme, Toolbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoaderFunctionArgs, useLoaderData, useNavigate } from "react-router-dom";
 import deepEqual from "deep-equal";
@@ -187,6 +187,11 @@ export default function Player() {
     setDidSeek(true);
   }, [player]);
 
+  const onEnded = useCallback(() => {
+    if (part && currentPartIndex + 1 != part.num_parts)
+        setCurrentPartIndex(currentPartIndex + 1);
+  }, [part, currentPartIndex]);
+
   const [imageBounds, setImageBounds] = useState<[number, number]>();
 
   useEffect(() => {
@@ -286,6 +291,10 @@ export default function Player() {
     navigate('/');
   }, [navigate]);
 
+  const onPartSelection = useCallback((event: SelectChangeEvent) => {
+    setCurrentPartIndex(parseInt(event.target.value));
+  }, []);
+
   return (
     <Box width="100vw" height="100vh" display="flex" flexDirection="column">
       <AppBar position="static">
@@ -296,17 +305,23 @@ export default function Player() {
           <Typography variant="h4" component="div" sx={{ mr: 2 }} >
             {part?.book_title ?? ''}
           </Typography>
-          <Typography variant="h6" component="div" color="text.secondary" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" component="div" color="text.secondary" >
             {part?.book_author ?? ''}
           </Typography>
-          <Select value={currentPartIndex}>
+          <Typography variant="h2" component="div" sx={{ flexGrow: 1, textAlign: "center" }} >
+            literAI
+          </Typography>
           {
-              part ?
-                Array.from(Array(part.num_parts).keys()).map(i => (
-                  <MenuItem value={i}>{`Part ${i + 1}`}</MenuItem>
-                )) : <Box />
-            }
-          </Select>
+            part && part.num_parts > 1 ?
+              <Select value={currentPartIndex.toString()} onChange={onPartSelection}>
+                {
+                  Array.from(Array(part.num_parts).keys()).map(i => (
+                    <MenuItem key={i} value={i.toString()}>{`Part ${i + 1}`}</MenuItem>
+                  ))
+                }
+              </Select> :
+              <Box />
+          }
         </Toolbar>
       </AppBar>
       <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" mt={2}>
@@ -357,7 +372,7 @@ export default function Player() {
       </Box>
       {
         storageBase && part ?
-          <ReactAudioPlayer style={{ width: "100%" }} src={`${storageBase}/${part.audio}`} ref={player} listenInterval={LISTEN_INTERVAL} onListen={onListen} onSeeked={onSeeked} onCanPlay={onSeeked} controls /> :
+          <ReactAudioPlayer style={{ width: "100%" }} src={`${storageBase}/${part.audio}`} ref={player} listenInterval={LISTEN_INTERVAL} onListen={onListen} onSeeked={onSeeked} onCanPlay={onSeeked} onEnded={onEnded} controls /> :
           <Box />
       }
       <Snackbar open={errorMessage !== undefined} autoHideDuration={10000} onClose={handleErrorClose}>
