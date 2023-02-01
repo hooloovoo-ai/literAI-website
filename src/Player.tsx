@@ -302,14 +302,13 @@ export default function Player() {
           <IconButton size="large" edge="start" color="inherit" aria-label="back" sx={{ mr: 2 }} onClick={onBack} >
             <ArrowBack />
           </IconButton>
-          <Typography variant="h4" component="div" sx={{ mr: 2 }} >
+          <Typography variant="h4" component="div" sx={{ mr: 2, display: { xs: 'none', sm: 'none', md: 'block' } }} >
             {part?.book_title ?? ''}
           </Typography>
-          <Typography variant="h6" component="div" color="text.secondary" >
+          <Typography variant="h6" component="div" color="text.secondary" sx={{ display: { xs: 'none', sm: 'none', md: 'block' } }} >
             {part?.book_author ?? ''}
           </Typography>
-          <Typography variant="h2" component="div" sx={{ flexGrow: 1, textAlign: "center" }} >
-            literAI
+          <Typography variant="h3" component="div" sx={{ flexGrow: 1, textAlign: "center" }} >
           </Typography>
           {
             part && part.num_parts > 1 ?
@@ -331,7 +330,7 @@ export default function Player() {
               {
                 imageInfo ?
                   <Fade in={!!imageInfo.in} timeout={FADE_DURATION_MS}>
-                    <img style={{ maxWidth: "100%", height: "auto" }} src={imageInfo.src} alt={imageInfo.alt} />
+                    <img style={{ maxHeight: "70vh", width: "auto" }} src={imageInfo.src} alt={imageInfo.alt} />
                   </Fade> :
                   <Box />
               }
