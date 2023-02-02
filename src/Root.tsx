@@ -56,7 +56,9 @@ export default function App() {
               <Stack direction="row" spacing={1}>
                 <Chip label="Colab" component="a" href="https://colab.research.google.com/drive/1D61fr09JikQNuNErtYIMXg_D_Bmt5Z-1?usp=sharing" target="_blank" variant="outlined" clickable />
                 <Chip label="GitHub (generator)" component="a" href="https://github.com/jquesnelle/literAI" target="_blank" variant="outlined" clickable />
-                <Chip label="GitHub (UI)" component="a" href="https://github.com/hooloovoo-ai/literAI-website" target="_blank" variant="outlined" clickable />
+                <Chip label="GitHub (UI)" component="a" href="https://github.com/hooloovoo-ai/literAI-website" target="_blank" variant="outlined" clickable /> 
+              </Stack>
+              <Stack direction="row" spacing={1} paddingTop={1}>
                 <Chip label="Twitter" component="a" href="https://twitter.com/theemozilla" target="_blank" variant="outlined" clickable />
                 <Chip label="Blog" component="a" href="https://jeffq.com/blog/literai-ai-generated-open-source-visual-podcasts/" target="_blank" variant="outlined" clickable />
               </Stack>
