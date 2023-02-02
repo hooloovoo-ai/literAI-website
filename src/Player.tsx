@@ -188,7 +188,7 @@ export default function Player() {
   }, [player]);
 
   const onEnded = useCallback(() => {
-    if (part && currentPartIndex + 1 != part.num_parts)
+    if (part && currentPartIndex + 1 !== part.num_parts)
         setCurrentPartIndex(currentPartIndex + 1);
   }, [part, currentPartIndex]);
 
